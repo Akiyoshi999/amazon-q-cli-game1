@@ -5,6 +5,8 @@ from player import Player
 from enemy import Enemy
 from bullet import Bullet
 from boss import Boss
+from powerup import PowerUp
+from sounds import SoundManager
 
 class Game:
     def __init__(self, width, height):
@@ -18,6 +20,7 @@ class Game:
         self.enemies = []
         self.player_bullets = []
         self.enemy_bullets = []
+        self.powerups = []
         
         # Game state
         self.score = 0
@@ -25,10 +28,18 @@ class Game:
         self.spawn_timer = 0
         self.spawn_delay = 60  # Frames between enemy spawns
         
+        # Powerup spawn settings
+        self.powerup_timer = 0
+        self.powerup_delay = 300  # Spawn powerup every 5 seconds (300 frames)
+        
         # Boss state
         self.boss = None
         self.boss_spawn_score = 200  # Spawn boss after this score
         self.boss_defeated = False
+        
+        # Sound manager
+        self.sound_manager = SoundManager()
+        self.sound_manager.play_music('bgm')
         
         # Load background
         self.bg_color = (0, 0, 50)  # Dark blue background
@@ -40,10 +51,14 @@ class Game:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE and not self.game_over:
                 # Fire bullet
-                bullet = Bullet(self.player.x + self.player.width, 
-                               self.player.y + self.player.height // 2, 
-                               10, 0)  # Horizontal bullet
-                self.player_bullets.append(bullet)
+                bullet_data = self.player.fire_bullets()
+                for data in bullet_data:
+                    bullet = Bullet(data['x'], data['y'], data['speed_x'], data['speed_y'])
+                    self.player_bullets.append(bullet)
+                
+                # Play sound
+                self.sound_manager.play_sound('shoot')
+                
             elif event.key == pygame.K_r and self.game_over:
                 # Restart game
                 self.__init__(self.width, self.height)
@@ -61,6 +76,21 @@ class Game:
             self.boss = Boss(self.width, self.height)
             # Stop spawning regular enemies when boss appears
             self.enemies = []
+            # Play boss appear sound
+            self.sound_manager.play_sound('boss_appear')
+            # Change music
+            self.sound_manager.play_music('boss_bgm')
+        
+        # Spawn powerups
+        self.powerup_timer += 1
+        if self.powerup_timer >= self.powerup_delay:
+            self.powerup_timer = 0
+            # Only spawn powerups during regular gameplay (not during boss fight)
+            if self.boss is None:
+                x = self.width
+                y = random.randint(50, self.height - 50)
+                powerup = PowerUp(x, y)
+                self.powerups.append(powerup)
         
         # Spawn regular enemies (only if boss is not present)
         if self.boss is None:
@@ -75,6 +105,22 @@ class Game:
                 if self.spawn_delay > 20:
                     self.spawn_delay -= 1
         
+        # Update powerups
+        for powerup in self.powerups[:]:
+            powerup.update()
+            
+            # Remove powerups that are off-screen
+            if powerup.x < -powerup.width:
+                self.powerups.remove(powerup)
+                continue
+                
+            # Check collision with player
+            if self.check_collision(powerup, self.player):
+                message = powerup.apply_effect(self.player)
+                self.player.set_powerup_message(message)
+                self.powerups.remove(powerup)
+                self.sound_manager.play_sound('powerup')
+        
         # Update boss
         if self.boss is not None:
             self.boss.update()
@@ -87,8 +133,9 @@ class Game:
                     self.enemy_bullets.append(bullet)
             
             # Check collision with player
-            if self.check_collision(self.boss, self.player):
+            if self.check_collision(self.boss, self.player) and not self.player.has_shield():
                 self.game_over = True
+                self.sound_manager.play_sound('explosion')
         
         # Update regular enemies
         for enemy in self.enemies[:]:
@@ -97,6 +144,7 @@ class Game:
             # Remove enemies that are off-screen
             if enemy.x < -enemy.width:
                 self.enemies.remove(enemy)
+                continue
                 
             # Enemy shoots randomly
             if random.random() < 0.01:  # 1% chance per frame
@@ -104,8 +152,9 @@ class Game:
                 self.enemy_bullets.append(bullet)
                 
             # Check collision with player
-            if self.check_collision(enemy, self.player):
+            if self.check_collision(enemy, self.player) and not self.player.has_shield():
                 self.game_over = True
+                self.sound_manager.play_sound('explosion')
         
         # Update player bullets
         for bullet in self.player_bullets[:]:
@@ -120,10 +169,14 @@ class Game:
             if self.boss is not None and self.check_collision(bullet, self.boss):
                 self.player_bullets.remove(bullet)
                 boss_defeated = self.boss.take_damage(10)
+                self.sound_manager.play_sound('boss_hit')
+                
                 if boss_defeated:
                     self.boss = None
                     self.boss_defeated = True
                     self.score += 100  # Extra points for defeating boss
+                    self.sound_manager.play_sound('boss_defeat')
+                    self.sound_manager.play_music('bgm')  # Return to normal music
                 break
                 
             # Check collision with regular enemies
@@ -132,6 +185,13 @@ class Game:
                     self.player_bullets.remove(bullet)
                     self.enemies.remove(enemy)
                     self.score += 10
+                    self.sound_manager.play_sound('explosion')
+                    
+                    # Chance to spawn powerup when enemy is destroyed
+                    if random.random() < 0.1:  # 10% chance
+                        powerup = PowerUp(enemy.x, enemy.y)
+                        self.powerups.append(powerup)
+                    
                     break
         
         # Update enemy bullets
@@ -144,9 +204,10 @@ class Game:
                 continue
                 
             # Check collision with player
-            if self.check_collision(bullet, self.player):
+            if self.check_collision(bullet, self.player) and not self.player.has_shield():
                 self.enemy_bullets.remove(bullet)
                 self.game_over = True
+                self.sound_manager.play_sound('explosion')
     
     def render(self):
         # Clear screen
@@ -163,6 +224,10 @@ class Game:
         for enemy in self.enemies:
             enemy.draw(self.screen)
         
+        # Draw powerups
+        for powerup in self.powerups:
+            powerup.draw(self.screen)
+        
         # Draw bullets
         for bullet in self.player_bullets:
             bullet.draw(self.screen)
@@ -173,6 +238,9 @@ class Game:
         # Draw score
         score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
         self.screen.blit(score_text, (10, 10))
+        
+        # Draw powerup status
+        self._draw_powerup_status()
         
         # Draw boss approaching message
         if self.boss_spawn_score - self.score <= 50 and self.boss is None and not self.boss_defeated:
@@ -194,6 +262,31 @@ class Game:
         
         # Update display
         pygame.display.flip()
+    
+    def _draw_powerup_status(self):
+        # Draw powerup status at the bottom of the screen
+        status_y = self.height - 30
+        font = pygame.font.SysFont(None, 24)
+        
+        # Multi-shot status
+        if self.player.powerups["multi_shot"] > 0:
+            text = font.render(f"Multi-Shot: {self.player.powerups['multi_shot'] // 60}s", True, (255, 255, 0))
+            self.screen.blit(text, (10, status_y))
+        
+        # Diagonal-shot status
+        if self.player.powerups["diagonal_shot"] > 0:
+            text = font.render(f"Diag-Shot: {self.player.powerups['diagonal_shot'] // 60}s", True, (0, 255, 255))
+            self.screen.blit(text, (150, status_y))
+        
+        # Speed-up status
+        if self.player.powerups["speed_up"] > 0:
+            text = font.render(f"Speed-Up: {self.player.powerups['speed_up'] // 60}s", True, (0, 255, 0))
+            self.screen.blit(text, (290, status_y))
+        
+        # Shield status
+        if self.player.powerups["shield"] > 0:
+            text = font.render(f"Shield: {self.player.powerups['shield'] // 60}s", True, (100, 100, 255))
+            self.screen.blit(text, (430, status_y))
     
     def check_collision(self, obj1, obj2):
         # Simple rectangle collision
