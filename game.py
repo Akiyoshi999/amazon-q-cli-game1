@@ -38,8 +38,12 @@ class Game:
         self.boss_defeated = False
         
         # Sound manager
-        self.sound_manager = SoundManager()
-        self.sound_manager.play_music('bgm')
+        try:
+            self.sound_manager = SoundManager()
+            # Don't try to play music right away, wait until sounds are generated
+        except Exception as e:
+            print(f"Error initializing sound manager: {e}")
+            self.sound_manager = None
         
         # Load background
         self.bg_color = (0, 0, 50)  # Dark blue background
@@ -57,7 +61,11 @@ class Game:
                     self.player_bullets.append(bullet)
                 
                 # Play sound
-                self.sound_manager.play_sound('shoot')
+                if self.sound_manager:
+                    try:
+                        self.sound_manager.play_sound('shoot')
+                    except Exception as e:
+                        pass  # Silently ignore sound errors
                 
             elif event.key == pygame.K_r and self.game_over:
                 # Restart game
@@ -71,15 +79,25 @@ class Game:
         keys = pygame.key.get_pressed()
         self.player.update(keys, self.width, self.height)
         
+        # Start BGM if not already playing
+        if self.sound_manager and not self.sound_manager.current_music:
+            try:
+                self.sound_manager.play_music('bgm')
+            except Exception:
+                pass
+        
         # Check if boss should spawn
         if self.score >= self.boss_spawn_score and self.boss is None and not self.boss_defeated:
             self.boss = Boss(self.width, self.height)
             # Stop spawning regular enemies when boss appears
             self.enemies = []
             # Play boss appear sound
-            self.sound_manager.play_sound('boss_appear')
-            # Change music
-            self.sound_manager.play_music('boss_bgm')
+            if self.sound_manager:
+                try:
+                    self.sound_manager.play_sound('boss_appear')
+                    self.sound_manager.play_music('boss_bgm')
+                except Exception:
+                    pass  # Silently ignore sound errors
         
         # Spawn powerups
         self.powerup_timer += 1
@@ -119,7 +137,11 @@ class Game:
                 message = powerup.apply_effect(self.player)
                 self.player.set_powerup_message(message)
                 self.powerups.remove(powerup)
-                self.sound_manager.play_sound('powerup')
+                if self.sound_manager:
+                    try:
+                        self.sound_manager.play_sound('powerup')
+                    except Exception:
+                        pass
         
         # Update boss
         if self.boss is not None:
@@ -135,7 +157,11 @@ class Game:
             # Check collision with player
             if self.check_collision(self.boss, self.player) and not self.player.has_shield():
                 self.game_over = True
-                self.sound_manager.play_sound('explosion')
+                if self.sound_manager:
+                    try:
+                        self.sound_manager.play_sound('explosion')
+                    except Exception:
+                        pass
         
         # Update regular enemies
         for enemy in self.enemies[:]:
@@ -154,7 +180,11 @@ class Game:
             # Check collision with player
             if self.check_collision(enemy, self.player) and not self.player.has_shield():
                 self.game_over = True
-                self.sound_manager.play_sound('explosion')
+                if self.sound_manager:
+                    try:
+                        self.sound_manager.play_sound('explosion')
+                    except Exception:
+                        pass
         
         # Update player bullets
         for bullet in self.player_bullets[:]:
@@ -169,14 +199,22 @@ class Game:
             if self.boss is not None and self.check_collision(bullet, self.boss):
                 self.player_bullets.remove(bullet)
                 boss_defeated = self.boss.take_damage(10)
-                self.sound_manager.play_sound('boss_hit')
+                if self.sound_manager:
+                    try:
+                        self.sound_manager.play_sound('boss_hit')
+                    except Exception:
+                        pass
                 
                 if boss_defeated:
                     self.boss = None
                     self.boss_defeated = True
                     self.score += 100  # Extra points for defeating boss
-                    self.sound_manager.play_sound('boss_defeat')
-                    self.sound_manager.play_music('bgm')  # Return to normal music
+                    if self.sound_manager:
+                        try:
+                            self.sound_manager.play_sound('boss_defeat')
+                            self.sound_manager.play_music('bgm')  # Return to normal music
+                        except Exception:
+                            pass
                 break
                 
             # Check collision with regular enemies
@@ -185,7 +223,11 @@ class Game:
                     self.player_bullets.remove(bullet)
                     self.enemies.remove(enemy)
                     self.score += 10
-                    self.sound_manager.play_sound('explosion')
+                    if self.sound_manager:
+                        try:
+                            self.sound_manager.play_sound('explosion')
+                        except Exception:
+                            pass
                     
                     # Chance to spawn powerup when enemy is destroyed
                     if random.random() < 0.1:  # 10% chance
@@ -207,7 +249,11 @@ class Game:
             if self.check_collision(bullet, self.player) and not self.player.has_shield():
                 self.enemy_bullets.remove(bullet)
                 self.game_over = True
-                self.sound_manager.play_sound('explosion')
+                if self.sound_manager:
+                    try:
+                        self.sound_manager.play_sound('explosion')
+                    except Exception:
+                        pass
     
     def render(self):
         # Clear screen
