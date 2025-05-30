@@ -13,6 +13,10 @@ class Player:
         self.engine_color = (255, 100, 0)  # Orange for engine
         self.detail_color = (0, 200, 255)  # Cyan for details
         
+        # 当たり判定用の中心点
+        self.hitbox_radius = 3
+        self.hitbox_color = (255, 0, 0)  # Red
+        
         # Engine animation
         self.engine_flicker = 0
         
@@ -131,6 +135,11 @@ class Player:
         pygame.draw.rect(screen, (100, 100, 100), 
                         (self.x + self.width - 5, self.y + 3 * self.height // 4 - 2, 8, 4))
         
+        # Draw hitbox (red circle at center)
+        hitbox_x = self.x + self.width // 2
+        hitbox_y = self.y + self.height // 2
+        pygame.draw.circle(screen, self.hitbox_color, (hitbox_x, hitbox_y), self.hitbox_radius)
+        
         # Draw shield if active
         if self.powerups["shield"] > 0:
             # Draw shield bubble
@@ -170,6 +179,10 @@ class Player:
             font = pygame.font.SysFont(None, 24)
             text = font.render(self.powerup_message, True, (255, 255, 255))
             screen.blit(text, (self.x, self.y - 20))
+    
+    def get_hitbox_center(self):
+        """当たり判定の中心座標を返す"""
+        return (self.x + self.width // 2, self.y + self.height // 2)
     
     def _draw_powerup_indicators(self, screen):
         # Draw small indicators for active powerups

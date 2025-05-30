@@ -243,7 +243,7 @@ class Boss:
         bullet_data = []
         
         # Adjust shoot delay based on phase
-        phase_shoot_delay = max(15, self.shoot_delay - (self.phase - 1) * 4)  # 10から15に増加、減少幅も5から4に調整
+        phase_shoot_delay = max(12, self.shoot_delay - (self.phase - 1) * 4)  # 15から12に減少
         
         if self.shoot_timer >= phase_shoot_delay:
             self.shoot_timer = 0
@@ -273,6 +273,21 @@ class Boss:
                         'speed_x': -7,
                         'speed_y': 1
                     })
+                    
+                    # フェーズ2以降はさらに弾を追加
+                    if random.random() < 0.3:
+                        bullet_data.append({
+                            'x': self.x, 
+                            'y': self.y + self.height // 2,
+                            'speed_x': -7,
+                            'speed_y': -2
+                        })
+                        bullet_data.append({
+                            'x': self.x, 
+                            'y': self.y + self.height // 2,
+                            'speed_x': -7,
+                            'speed_y': 2
+                        })
                 
             elif self.current_pattern == "circle":
                 # Spread shot (3-5 bullets depending on phase)
@@ -287,6 +302,17 @@ class Boss:
                         'speed_x': -7 * math.cos(angle),
                         'speed_y': -7 * math.sin(angle)
                     })
+                
+                # フェーズ3以降は追加の円形弾幕
+                if self.phase >= 3 and random.random() < 0.4:
+                    for i in range(8):  # 8方向
+                        angle = i * math.pi / 4
+                        bullet_data.append({
+                            'x': self.x + self.width // 2, 
+                            'y': self.y + self.height // 2,
+                            'speed_x': -5 * math.cos(angle),
+                            'speed_y': -5 * math.sin(angle)
+                        })
                 
             elif self.current_pattern == "zigzag":
                 # Two bullets, up and down (all phases)
@@ -311,12 +337,27 @@ class Boss:
                         'speed_x': -7,
                         'speed_y': 0
                     })
+                    
+                    # フェーズ3以降はさらに弾を追加
+                    if random.random() < 0.3:
+                        bullet_data.append({
+                            'x': self.x, 
+                            'y': self.y + self.height // 3,
+                            'speed_x': -6.5,
+                            'speed_y': -1.5
+                        })
+                        bullet_data.append({
+                            'x': self.x, 
+                            'y': self.y + 2 * self.height // 3,
+                            'speed_x': -6.5,
+                            'speed_y': 1.5
+                        })
                 
             elif self.current_pattern == "charge":
                 # Rapid fire during charge
                 if self.move_timer >= 60 and self.move_timer < 90:
                     # Faster shooting during charge
-                    if random.random() < 0.25:  # 0.3から0.25に減少
+                    if random.random() < 0.3:  # 0.3から変更なし
                         bullet_data.append({
                             'x': self.x, 
                             'y': self.y + random.randint(0, self.height),
@@ -325,7 +366,7 @@ class Boss:
                         })
                         
                         # Additional bullets in phase 4
-                        if self.phase >= 4 and random.random() < 0.4:  # 0.5から0.4に減少
+                        if self.phase >= 4 and random.random() < 0.5:  # 0.4から0.5に増加
                             bullet_data.append({
                                 'x': self.x, 
                                 'y': self.y + random.randint(0, self.height),
@@ -335,18 +376,29 @@ class Boss:
             
             elif self.current_pattern == "spiral":
                 # Phase 2+: Spiral bullets
-                for i in range(self.phase):  # More bullets in later phases
-                    angle = self.spiral_angle + i * (2 * math.pi / self.phase)
+                for i in range(self.phase + 1):  # More bullets in later phases (phase+1に増加)
+                    angle = self.spiral_angle + i * (2 * math.pi / (self.phase + 1))
                     bullet_data.append({
                         'x': self.x + self.width // 2, 
                         'y': self.y + self.height // 2,
                         'speed_x': -5 * math.cos(angle),
                         'speed_y': -5 * math.sin(angle)
                     })
+                    
+                # フェーズ3以降は二重螺旋
+                if self.phase >= 3 and random.random() < 0.3:
+                    for i in range(self.phase):
+                        angle = self.spiral_angle + math.pi/4 + i * (2 * math.pi / self.phase)
+                        bullet_data.append({
+                            'x': self.x + self.width // 2, 
+                            'y': self.y + self.height // 2,
+                            'speed_x': -4.5 * math.cos(angle),
+                            'speed_y': -4.5 * math.sin(angle)
+                        })
             
             elif self.current_pattern == "burst":
                 # Phase 3+: Burst of bullets in all directions
-                if self.burst_timer % 60 < 10 and self.burst_timer % 6 == 0:  # 5から6に増加
+                if self.burst_timer % 60 < 10 and self.burst_timer % 5 == 0:  # 6から5に減少
                     num_bullets = 8  # 8 directions
                     for i in range(num_bullets):
                         angle = i * (2 * math.pi / num_bullets)
@@ -356,10 +408,21 @@ class Boss:
                             'speed_x': -6 * math.cos(angle),
                             'speed_y': -6 * math.sin(angle)
                         })
+                    
+                    # フェーズ4では追加の弾幕
+                    if self.phase >= 4 and random.random() < 0.4:
+                        for i in range(num_bullets):
+                            angle = (i + 0.5) * (2 * math.pi / num_bullets)  # オフセット角度
+                            bullet_data.append({
+                                'x': self.x + self.width // 2, 
+                                'y': self.y + self.height // 2,
+                                'speed_x': -5.5 * math.cos(angle),
+                                'speed_y': -5.5 * math.sin(angle)
+                            })
             
             elif self.current_pattern == "laser":
                 # Phase 4: Powerful laser attack
-                if self.laser_charging >= 60 and self.laser_charging < 90 and self.laser_charging % 10 == 0:
+                if self.laser_charging >= 60 and self.laser_charging < 90 and self.laser_charging % 8 == 0:  # 10から8に減少
                     # Warning shots during charging
                     bullet_data.append({
                         'x': self.x, 
@@ -367,7 +430,7 @@ class Boss:
                         'speed_x': -10,
                         'speed_y': 0
                     })
-                elif self.laser_firing > 0 and self.laser_firing < 60 and self.laser_firing % 4 == 0:  # 3から4に増加
+                elif self.laser_firing > 0 and self.laser_firing < 60 and self.laser_firing % 3 == 0:  # 4から3に減少
                     # Rapid laser fire
                     bullet_data.append({
                         'x': self.x, 
@@ -375,6 +438,15 @@ class Boss:
                         'speed_x': -12,
                         'speed_y': random.uniform(-0.5, 0.5)  # Slight spread
                     })
+                    
+                    # 追加のレーザー弾
+                    if random.random() < 0.3:
+                        bullet_data.append({
+                            'x': self.x, 
+                            'y': self.y + self.height // 2 + random.uniform(-5, 5),
+                            'speed_x': -11.5,
+                            'speed_y': random.uniform(-0.8, 0.8)
+                        })
         
         return should_shoot, bullet_data
     

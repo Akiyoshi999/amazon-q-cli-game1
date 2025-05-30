@@ -59,19 +59,19 @@ class Game:
     def _apply_difficulty_settings(self):
         """難易度に応じたゲーム設定を適用"""
         if self.difficulty == "easy":
-            self.enemy_shoot_chance = 0.005  # 敵の発射確率
+            self.enemy_shoot_chance = 0.008  # 敵の発射確率 (0.005から増加)
             self.base_spawn_delay = 80  # 敵の出現間隔
             self.base_powerup_delay = 240  # パワーアップの出現間隔
             self.boss_hp_multiplier = 0.7  # ボスのHP倍率
             self.player_damage_multiplier = 1.5  # プレイヤーの与えるダメージ倍率
         elif self.difficulty == "normal":
-            self.enemy_shoot_chance = 0.007
+            self.enemy_shoot_chance = 0.012  # 0.007から増加
             self.base_spawn_delay = 60
             self.base_powerup_delay = 300
             self.boss_hp_multiplier = 1.0
             self.player_damage_multiplier = 1.0
         elif self.difficulty == "hard":
-            self.enemy_shoot_chance = 0.01
+            self.enemy_shoot_chance = 0.016  # 0.01から増加
             self.base_spawn_delay = 45
             self.base_powerup_delay = 360
             self.boss_hp_multiplier = 1.3
@@ -79,7 +79,7 @@ class Game:
         else:
             # デフォルトはnormal
             self.difficulty = "normal"
-            self.enemy_shoot_chance = 0.007
+            self.enemy_shoot_chance = 0.012
             self.base_spawn_delay = 60
             self.base_powerup_delay = 300
             self.boss_hp_multiplier = 1.0
@@ -386,8 +386,19 @@ class Game:
             self.screen.blit(text, (430, status_y))
     
     def check_collision(self, obj1, obj2):
-        # Simple rectangle collision
-        return (obj1.x < obj2.x + obj2.width and
-                obj1.x + obj1.width > obj2.x and
-                obj1.y < obj2.y + obj2.height and
-                obj1.y + obj1.height > obj2.y)
+        # プレイヤーの場合は中心点の当たり判定を使用
+        if isinstance(obj2, Player):
+            # プレイヤーの中心座標を取得
+            player_center_x, player_center_y = obj2.get_hitbox_center()
+            
+            # プレイヤーの当たり判定は中心の小さな円
+            return (obj1.x < player_center_x + obj2.hitbox_radius and
+                    obj1.x + obj1.width > player_center_x - obj2.hitbox_radius and
+                    obj1.y < player_center_y + obj2.hitbox_radius and
+                    obj1.y + obj1.height > player_center_y - obj2.hitbox_radius)
+        else:
+            # 通常の矩形当たり判定
+            return (obj1.x < obj2.x + obj2.width and
+                    obj1.x + obj1.width > obj2.x and
+                    obj1.y < obj2.y + obj2.height and
+                    obj1.y + obj1.height > obj2.y)
