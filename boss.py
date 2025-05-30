@@ -3,7 +3,7 @@ import random
 import math
 
 class Boss:
-    def __init__(self, screen_width, screen_height):
+    def __init__(self, screen_width, screen_height, hp_multiplier=1.0):
         # Position and size
         self.width = 60  # 80から60に縮小
         self.height = 60  # 80から60に縮小
@@ -29,7 +29,7 @@ class Boss:
         self.circle_center_y = screen_height // 2
         
         # Stats
-        self.max_hp = 200  # Increased from 100 to 200
+        self.max_hp = int(200 * hp_multiplier)  # 難易度に応じてHP調整
         self.hp = self.max_hp
         self.shoot_timer = 0
         self.shoot_delay = 30  # Shoot every 30 frames

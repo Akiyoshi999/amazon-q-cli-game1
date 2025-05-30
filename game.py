@@ -9,11 +9,15 @@ from powerup import PowerUp
 from sounds import SoundManager
 
 class Game:
-    def __init__(self, width, height):
+    def __init__(self, width, height, difficulty="normal"):
         self.width = width
         self.height = height
         self.screen = pygame.display.set_mode((width, height))
         pygame.display.set_caption("Horizontal Shooter")
+        
+        # 難易度設定
+        self.difficulty = difficulty
+        self._apply_difficulty_settings()
         
         # Game objects
         self.player = Player(50, height // 2)
@@ -25,12 +29,13 @@ class Game:
         # Game state
         self.score = 0
         self.game_over = False
+        self.game_cleared = False
         self.spawn_timer = 0
-        self.spawn_delay = 60  # Frames between enemy spawns
+        self.spawn_delay = self.base_spawn_delay  # 難易度に応じて設定
         
         # Powerup spawn settings
         self.powerup_timer = 0
-        self.powerup_delay = 300  # Spawn powerup every 5 seconds (300 frames)
+        self.powerup_delay = self.base_powerup_delay  # 難易度に応じて設定
         
         # Boss state
         self.boss = None
@@ -51,9 +56,38 @@ class Game:
         # Load fonts
         self.font = pygame.font.SysFont(None, 36)
     
+    def _apply_difficulty_settings(self):
+        """難易度に応じたゲーム設定を適用"""
+        if self.difficulty == "easy":
+            self.enemy_shoot_chance = 0.005  # 敵の発射確率
+            self.base_spawn_delay = 80  # 敵の出現間隔
+            self.base_powerup_delay = 240  # パワーアップの出現間隔
+            self.boss_hp_multiplier = 0.7  # ボスのHP倍率
+            self.player_damage_multiplier = 1.5  # プレイヤーの与えるダメージ倍率
+        elif self.difficulty == "normal":
+            self.enemy_shoot_chance = 0.007
+            self.base_spawn_delay = 60
+            self.base_powerup_delay = 300
+            self.boss_hp_multiplier = 1.0
+            self.player_damage_multiplier = 1.0
+        elif self.difficulty == "hard":
+            self.enemy_shoot_chance = 0.01
+            self.base_spawn_delay = 45
+            self.base_powerup_delay = 360
+            self.boss_hp_multiplier = 1.3
+            self.player_damage_multiplier = 0.8
+        else:
+            # デフォルトはnormal
+            self.difficulty = "normal"
+            self.enemy_shoot_chance = 0.007
+            self.base_spawn_delay = 60
+            self.base_powerup_delay = 300
+            self.boss_hp_multiplier = 1.0
+            self.player_damage_multiplier = 1.0
+    
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE and not self.game_over:
+            if event.key == pygame.K_SPACE and not self.game_over and not self.game_cleared:
                 # Fire bullet
                 bullet_data = self.player.fire_bullets()
                 for data in bullet_data:
@@ -67,12 +101,12 @@ class Game:
                     except Exception as e:
                         pass  # Silently ignore sound errors
                 
-            elif event.key == pygame.K_r and self.game_over:
-                # Restart game
-                self.__init__(self.width, self.height)
+            elif event.key == pygame.K_r and (self.game_over or self.game_cleared):
+                # Restart game with same difficulty
+                self.__init__(self.width, self.height, self.difficulty)
     
     def update(self):
-        if self.game_over:
+        if self.game_over or self.game_cleared:
             return
             
         # Update player
@@ -88,7 +122,7 @@ class Game:
         
         # Check if boss should spawn
         if self.score >= self.boss_spawn_score and self.boss is None and not self.boss_defeated:
-            self.boss = Boss(self.width, self.height)
+            self.boss = Boss(self.width, self.height, self.boss_hp_multiplier)
             # Stop spawning regular enemies when boss appears
             self.enemies = []
             # Play boss appear sound
@@ -172,8 +206,8 @@ class Game:
                 self.enemies.remove(enemy)
                 continue
                 
-            # Enemy shoots randomly - 減らして弾幕を調整
-            if random.random() < 0.007:  # 0.01から0.007に減少
+            # Enemy shoots randomly - 難易度に応じた確率で発射
+            if random.random() < self.enemy_shoot_chance:
                 bullet = Bullet(enemy.x, enemy.y + enemy.height // 2, -5, 0)
                 self.enemy_bullets.append(bullet)
                 
@@ -198,7 +232,8 @@ class Game:
             # Check collision with boss
             if self.boss is not None and self.check_collision(bullet, self.boss):
                 self.player_bullets.remove(bullet)
-                boss_defeated = self.boss.take_damage(10)
+                # 難易度に応じたダメージを与える
+                boss_defeated = self.boss.take_damage(10 * self.player_damage_multiplier)
                 if self.sound_manager:
                     try:
                         self.sound_manager.play_sound('boss_hit')
@@ -208,6 +243,7 @@ class Game:
                 if boss_defeated:
                     self.boss = None
                     self.boss_defeated = True
+                    self.game_cleared = True  # ゲームクリア状態に設定
                     self.score += 100  # Extra points for defeating boss
                     if self.sound_manager:
                         try:
@@ -281,9 +317,12 @@ class Game:
         for bullet in self.enemy_bullets:
             bullet.draw(self.screen, (255, 0, 0))  # Red for enemy bullets
         
-        # Draw score
+        # Draw score and difficulty
         score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
         self.screen.blit(score_text, (10, 10))
+        
+        difficulty_text = self.font.render(f"Difficulty: {self.difficulty.capitalize()}", True, (255, 255, 255))
+        self.screen.blit(difficulty_text, (10, 40))
         
         # Draw powerup status
         self._draw_powerup_status()
@@ -294,17 +333,29 @@ class Game:
             text_rect = warning_text.get_rect(center=(self.width // 2, 50))
             self.screen.blit(warning_text, text_rect)
         
-        # Draw boss defeated message
-        if self.boss_defeated and self.score >= self.boss_spawn_score + 100:
-            victory_text = self.font.render("Boss Defeated!", True, (50, 255, 50))
-            text_rect = victory_text.get_rect(center=(self.width // 2, 50))
+        # Draw game cleared message
+        if self.game_cleared:
+            victory_text = self.font.render("GAME CLEARED!", True, (50, 255, 50))
+            text_rect = victory_text.get_rect(center=(self.width // 2, self.height // 2 - 40))
             self.screen.blit(victory_text, text_rect)
+            
+            score_text = self.font.render(f"Final Score: {self.score}", True, (255, 255, 255))
+            score_rect = score_text.get_rect(center=(self.width // 2, self.height // 2))
+            self.screen.blit(score_text, score_rect)
+            
+            restart_text = self.font.render("Press R to restart", True, (255, 255, 255))
+            restart_rect = restart_text.get_rect(center=(self.width // 2, self.height // 2 + 40))
+            self.screen.blit(restart_text, restart_rect)
         
         # Draw game over message
-        if self.game_over:
-            game_over_text = self.font.render("GAME OVER - Press R to restart", True, (255, 0, 0))
-            text_rect = game_over_text.get_rect(center=(self.width // 2, self.height // 2))
+        elif self.game_over:
+            game_over_text = self.font.render("GAME OVER", True, (255, 0, 0))
+            text_rect = game_over_text.get_rect(center=(self.width // 2, self.height // 2 - 20))
             self.screen.blit(game_over_text, text_rect)
+            
+            restart_text = self.font.render("Press R to restart", True, (255, 255, 255))
+            restart_rect = restart_text.get_rect(center=(self.width // 2, self.height // 2 + 20))
+            self.screen.blit(restart_text, restart_rect)
         
         # Update display
         pygame.display.flip()
