@@ -25,6 +25,7 @@ class Game:
         self.player_bullets = []
         self.enemy_bullets = []
         self.powerups = []
+        self.hit_effects = []  # ヒットエフェクト用リスト
         
         # Game state
         self.score = 0
@@ -113,6 +114,9 @@ class Game:
         keys = pygame.key.get_pressed()
         self.player.update(keys, self.width, self.height)
         
+        # Update hit effects
+        self._update_hit_effects()
+        
         # Start BGM if not already playing
         if self.sound_manager and not self.sound_manager.current_music:
             try:
@@ -190,7 +194,11 @@ class Game:
             
             # Check collision with player
             if self.check_collision(self.boss, self.player) and not self.player.has_shield():
-                self.game_over = True
+                # プレイヤーがダメージを受ける
+                game_over = self.player.take_damage()
+                if game_over:
+                    self.game_over = True
+                
                 if self.sound_manager:
                     try:
                         self.sound_manager.play_sound('explosion')
@@ -213,7 +221,11 @@ class Game:
                 
             # Check collision with player
             if self.check_collision(enemy, self.player) and not self.player.has_shield():
-                self.game_over = True
+                # プレイヤーがダメージを受ける
+                game_over = self.player.take_damage()
+                if game_over:
+                    self.game_over = True
+                
                 if self.sound_manager:
                     try:
                         self.sound_manager.play_sound('explosion')
@@ -284,7 +296,16 @@ class Game:
             # Check collision with player
             if self.check_collision(bullet, self.player) and not self.player.has_shield():
                 self.enemy_bullets.remove(bullet)
-                self.game_over = True
+                
+                # プレイヤーがダメージを受ける
+                game_over = self.player.take_damage()
+                if game_over:
+                    self.game_over = True
+                
+                # ヒットエフェクト（爆発）を作成
+                self._create_hit_effect(self.player.x + self.player.width // 2, 
+                                       self.player.y + self.player.height // 2)
+                
                 if self.sound_manager:
                     try:
                         self.sound_manager.play_sound('explosion')
@@ -316,6 +337,9 @@ class Game:
             
         for bullet in self.enemy_bullets:
             bullet.draw(self.screen, (255, 0, 0))  # Red for enemy bullets
+        
+        # Draw hit effects
+        self._draw_hit_effects(self.screen)
         
         # Draw score and difficulty
         score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
@@ -360,6 +384,24 @@ class Game:
         # Update display
         pygame.display.flip()
     
+    def check_collision(self, obj1, obj2):
+        # プレイヤーの場合は中心点の当たり判定を使用
+        if isinstance(obj2, Player):
+            # プレイヤーの中心座標を取得
+            player_center_x, player_center_y = obj2.get_hitbox_center()
+            
+            # プレイヤーの当たり判定は中心の小さな円
+            return (obj1.x < player_center_x + obj2.hitbox_radius and
+                    obj1.x + obj1.width > player_center_x - obj2.hitbox_radius and
+                    obj1.y < player_center_y + obj2.hitbox_radius and
+                    obj1.y + obj1.height > player_center_y - obj2.hitbox_radius)
+        else:
+            # 通常の矩形当たり判定
+            return (obj1.x < obj2.x + obj2.width and
+                    obj1.x + obj1.width > obj2.x and
+                    obj1.y < obj2.y + obj2.height and
+                    obj1.y + obj1.height > obj2.y)
+    
     def _draw_powerup_status(self):
         # Draw powerup status at the bottom of the screen
         status_y = self.height - 30
@@ -385,20 +427,42 @@ class Game:
             text = font.render(f"Shield: {self.player.powerups['shield'] // 60}s", True, (100, 100, 255))
             self.screen.blit(text, (430, status_y))
     
-    def check_collision(self, obj1, obj2):
-        # プレイヤーの場合は中心点の当たり判定を使用
-        if isinstance(obj2, Player):
-            # プレイヤーの中心座標を取得
-            player_center_x, player_center_y = obj2.get_hitbox_center()
+    def _create_hit_effect(self, x, y):
+        """ヒットエフェクト（爆発）を作成"""
+        self.hit_effects.append({
+            'x': x,
+            'y': y,
+            'radius': 5,
+            'max_radius': 20,
+            'duration': 15,  # 15フレーム（0.25秒）
+            'timer': 0
+        })
+    
+    def _update_hit_effects(self):
+        """ヒットエフェクトを更新"""
+        for effect in self.hit_effects[:]:
+            effect['timer'] += 1
+            # 半径を徐々に大きくする
+            effect['radius'] = effect['max_radius'] * (effect['timer'] / effect['duration'])
             
-            # プレイヤーの当たり判定は中心の小さな円
-            return (obj1.x < player_center_x + obj2.hitbox_radius and
-                    obj1.x + obj1.width > player_center_x - obj2.hitbox_radius and
-                    obj1.y < player_center_y + obj2.hitbox_radius and
-                    obj1.y + obj1.height > player_center_y - obj2.hitbox_radius)
-        else:
-            # 通常の矩形当たり判定
-            return (obj1.x < obj2.x + obj2.width and
-                    obj1.x + obj1.width > obj2.x and
-                    obj1.y < obj2.y + obj2.height and
-                    obj1.y + obj1.height > obj2.y)
+            # 時間切れのエフェクトを削除
+            if effect['timer'] >= effect['duration']:
+                self.hit_effects.remove(effect)
+    
+    def _draw_hit_effects(self, screen):
+        """ヒットエフェクトを描画"""
+        for effect in self.hit_effects:
+            # 透明度を徐々に下げる
+            alpha = 255 * (1 - effect['timer'] / effect['duration'])
+            
+            # 色を設定（黄色から赤へのグラデーション）
+            r = min(255, 255)
+            g = min(255, 255 * (1 - effect['timer'] / effect['duration']))
+            b = 0
+            
+            # 円を描画
+            pygame.draw.circle(screen, (r, g, b), (int(effect['x']), int(effect['y'])), int(effect['radius']), 2)
+            
+            # 内側の円も描画
+            inner_radius = max(1, effect['radius'] * 0.6)
+            pygame.draw.circle(screen, (255, 255, 200), (int(effect['x']), int(effect['y'])), int(inner_radius), 1)

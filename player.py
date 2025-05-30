@@ -13,6 +13,11 @@ class Player:
         self.engine_color = (255, 100, 0)  # Orange for engine
         self.detail_color = (0, 200, 255)  # Cyan for details
         
+        # HPの追加
+        self.max_hp = 2
+        self.hp = self.max_hp
+        self.hit_effect = 0  # ダメージを受けた時のエフェクト用タイマー
+        
         # 当たり判定用の中心点
         self.hitbox_radius = 3
         self.hitbox_color = (255, 0, 0)  # Red
@@ -70,6 +75,16 @@ class Player:
         self.engine_flicker = (self.engine_flicker + 1) % 10
     
     def draw(self, screen):
+        # ダメージエフェクト（赤く点滅）
+        if self.hit_effect > 0:
+            self.hit_effect -= 1
+            if self.hit_effect % 4 < 2:  # 点滅効果
+                ship_color = (255, 100, 100)  # 赤っぽい色
+            else:
+                ship_color = self.color
+        else:
+            ship_color = self.color
+            
         # Draw engine flames (animated)
         flame_length = 15 + (5 if self.engine_flicker < 5 else 0)
         flame_points = [
@@ -98,7 +113,7 @@ class Player:
             (self.x + 2 * self.width // 3, self.y + self.height), # Bottom middle
             (self.x + self.width // 3, self.y + self.height)      # Bottom front
         ]
-        pygame.draw.polygon(screen, self.color, ship_points)
+        pygame.draw.polygon(screen, ship_color, ship_points)
         
         # Draw wing details
         wing_top = [
@@ -171,6 +186,9 @@ class Player:
             shield_y = self.y + self.height // 2 - shield_radius
             screen.blit(shield_surface, (shield_x, shield_y))
         
+        # Draw HP bar
+        self._draw_hp_bar(screen)
+        
         # Draw powerup indicators
         self._draw_powerup_indicators(screen)
         
@@ -180,9 +198,27 @@ class Player:
             text = font.render(self.powerup_message, True, (255, 255, 255))
             screen.blit(text, (self.x, self.y - 20))
     
-    def get_hitbox_center(self):
-        """当たり判定の中心座標を返す"""
-        return (self.x + self.width // 2, self.y + self.height // 2)
+    def _draw_hp_bar(self, screen):
+        """HPバーを描画"""
+        bar_width = 30
+        bar_height = 4
+        bar_x = self.x + (self.width - bar_width) // 2
+        bar_y = self.y - 10
+        
+        # HPバーの背景
+        pygame.draw.rect(screen, (50, 50, 50), (bar_x, bar_y, bar_width, bar_height))
+        
+        # HPバーの中身
+        hp_ratio = self.hp / self.max_hp
+        fill_width = int(bar_width * hp_ratio)
+        
+        # HPに応じて色を変える
+        if hp_ratio > 0.5:
+            fill_color = (0, 255, 0)  # 緑
+        else:
+            fill_color = (255, 0, 0)  # 赤
+            
+        pygame.draw.rect(screen, fill_color, (bar_x, bar_y, fill_width, bar_height))
     
     def _draw_powerup_indicators(self, screen):
         # Draw small indicators for active powerups
@@ -255,6 +291,19 @@ class Player:
         
         return bullets
     
+    def take_damage(self):
+        """ダメージを受ける処理"""
+        if self.powerups["shield"] > 0:
+            return False  # シールド中はダメージを受けない
+            
+        self.hp -= 1
+        self.hit_effect = 30  # 30フレーム（0.5秒）のダメージエフェクト
+        return self.hp <= 0  # HPが0以下ならTrueを返す（ゲームオーバー）
+    
     def has_shield(self):
         """Check if shield is active"""
         return self.powerups["shield"] > 0
+    
+    def get_hitbox_center(self):
+        """当たり判定の中心座標を返す"""
+        return (self.x + self.width // 2, self.y + self.height // 2)
