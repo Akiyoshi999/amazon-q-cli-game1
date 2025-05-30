@@ -5,10 +5,15 @@ class Player:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.width = 40
-        self.height = 30
+        self.width = 45
+        self.height = 35
         self.speed = 5
         self.color = (0, 255, 0)  # Green
+        self.engine_color = (255, 100, 0)  # Orange for engine
+        self.detail_color = (0, 200, 255)  # Cyan for details
+        
+        # Engine animation
+        self.engine_flicker = 0
         
         # Powerups
         self.powerups = {
@@ -55,41 +60,106 @@ class Player:
         # Keep player on screen
         self.x = max(0, min(self.x, screen_width - self.width))
         self.y = max(0, min(self.y, screen_height - self.height))
+        
+        # Update engine animation
+        self.engine_flicker = (self.engine_flicker + 1) % 10
     
     def draw(self, screen):
-        # Draw player ship (triangle shape)
-        points = [
-            (self.x, self.y + self.height // 2),  # Nose
-            (self.x + self.width, self.y),        # Top
-            (self.x + self.width, self.y + self.height)  # Bottom
+        # Draw engine flames (animated)
+        flame_length = 15 + (5 if self.engine_flicker < 5 else 0)
+        flame_points = [
+            (self.x - flame_length, self.y + self.height // 2),  # Tip
+            (self.x, self.y + self.height // 3),                 # Top
+            (self.x, self.y + 2 * self.height // 3)              # Bottom
         ]
+        pygame.draw.polygon(screen, self.engine_color, flame_points)
+        
+        # Inner flame (brighter)
+        inner_flame_length = flame_length // 2
+        inner_flame_points = [
+            (self.x - inner_flame_length, self.y + self.height // 2),  # Tip
+            (self.x, self.y + self.height // 2 - 5),                   # Top
+            (self.x, self.y + self.height // 2 + 5)                    # Bottom
+        ]
+        pygame.draw.polygon(screen, (255, 255, 0), inner_flame_points)
+        
+        # Draw main ship body (sleek aerodynamic shape)
+        ship_points = [
+            (self.x, self.y + self.height // 2),                  # Nose
+            (self.x + self.width // 3, self.y),                   # Top front
+            (self.x + 2 * self.width // 3, self.y),               # Top middle
+            (self.x + self.width, self.y + self.height // 4),     # Top rear
+            (self.x + self.width, self.y + 3 * self.height // 4), # Bottom rear
+            (self.x + 2 * self.width // 3, self.y + self.height), # Bottom middle
+            (self.x + self.width // 3, self.y + self.height)      # Bottom front
+        ]
+        pygame.draw.polygon(screen, self.color, ship_points)
+        
+        # Draw wing details
+        wing_top = [
+            (self.x + self.width // 3, self.y),
+            (self.x + self.width // 2, self.y - 10),
+            (self.x + 2 * self.width // 3, self.y)
+        ]
+        pygame.draw.polygon(screen, self.detail_color, wing_top)
+        
+        wing_bottom = [
+            (self.x + self.width // 3, self.y + self.height),
+            (self.x + self.width // 2, self.y + self.height + 10),
+            (self.x + 2 * self.width // 3, self.y + self.height)
+        ]
+        pygame.draw.polygon(screen, self.detail_color, wing_bottom)
+        
+        # Draw cockpit (glass dome)
+        cockpit_x = self.x + 2 * self.width // 3
+        cockpit_y = self.y + self.height // 2 - 8
+        cockpit_width = 15
+        cockpit_height = 16
+        
+        # Cockpit base
+        pygame.draw.ellipse(screen, (100, 100, 150), 
+                           (cockpit_x, cockpit_y, cockpit_width, cockpit_height))
+        
+        # Cockpit glass reflection
+        pygame.draw.ellipse(screen, (150, 200, 255), 
+                           (cockpit_x + 2, cockpit_y + 2, cockpit_width - 4, cockpit_height // 2 - 2))
+        
+        # Draw thruster nozzles
+        pygame.draw.rect(screen, (100, 100, 100), 
+                        (self.x + self.width - 5, self.y + self.height // 4 - 2, 8, 4))
+        pygame.draw.rect(screen, (100, 100, 100), 
+                        (self.x + self.width - 5, self.y + 3 * self.height // 4 - 2, 8, 4))
         
         # Draw shield if active
         if self.powerups["shield"] > 0:
             # Draw shield bubble
-            shield_radius = max(self.width, self.height) + 5
+            shield_radius = max(self.width, self.height) + 10
             shield_color = (100, 100, 255, 128)  # Blue with transparency
             
             # Create a surface with alpha
             shield_surface = pygame.Surface((shield_radius * 2, shield_radius * 2), pygame.SRCALPHA)
-            pygame.draw.circle(shield_surface, shield_color, (shield_radius, shield_radius), shield_radius)
             
             # Draw shield with pulsing effect
             pulse = math.sin(pygame.time.get_ticks() * 0.01) * 0.3 + 0.7
-            shield_surface.set_alpha(int(128 * pulse))
+            shield_alpha = int(128 * pulse)
+            
+            # Outer shield
+            pygame.draw.circle(shield_surface, (100, 100, 255, shield_alpha), 
+                              (shield_radius, shield_radius), shield_radius)
+            
+            # Inner shield (brighter)
+            pygame.draw.circle(shield_surface, (150, 150, 255, shield_alpha), 
+                              (shield_radius, shield_radius), shield_radius - 5, 3)
+            
+            # Shield energy ripples
+            ripple_radius = (pygame.time.get_ticks() // 100) % shield_radius
+            pygame.draw.circle(shield_surface, (200, 200, 255, shield_alpha // 2), 
+                              (shield_radius, shield_radius), ripple_radius, 2)
             
             # Position shield around player
             shield_x = self.x + self.width // 2 - shield_radius
             shield_y = self.y + self.height // 2 - shield_radius
             screen.blit(shield_surface, (shield_x, shield_y))
-        
-        # Draw player ship
-        pygame.draw.polygon(screen, self.color, points)
-        
-        # Draw cockpit
-        cockpit_x = self.x + self.width - 15
-        cockpit_y = self.y + self.height // 2 - 5
-        pygame.draw.rect(screen, (100, 100, 255), (cockpit_x, cockpit_y, 10, 10))
         
         # Draw powerup indicators
         self._draw_powerup_indicators(screen)
