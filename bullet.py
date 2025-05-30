@@ -4,8 +4,8 @@ class Bullet:
     def __init__(self, x, y, speed_x, speed_y):
         self.x = x
         self.y = y
-        self.width = 10
-        self.height = 5
+        self.width = 6  # 10から6に縮小
+        self.height = 3  # 5から3に縮小
         self.speed_x = speed_x
         self.speed_y = speed_y
         self.color = (255, 255, 0)  # Yellow

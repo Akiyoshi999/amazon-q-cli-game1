@@ -6,8 +6,8 @@ class PowerUp:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.width = 20
-        self.height = 20
+        self.width = 15  # 20から15に縮小
+        self.height = 15  # 20から15に縮小
         self.speed = 2
         
         # Randomly select powerup type

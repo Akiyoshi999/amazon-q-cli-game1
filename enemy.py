@@ -6,8 +6,8 @@ class Enemy:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.width = 30
-        self.height = 30
+        self.width = 20  # 30から20に縮小
+        self.height = 20  # 30から20に縮小
         self.speed = random.randint(2, 5)
         self.color = (255, 0, 0)  # Red
         

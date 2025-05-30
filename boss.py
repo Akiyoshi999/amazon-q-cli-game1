@@ -5,8 +5,8 @@ import math
 class Boss:
     def __init__(self, screen_width, screen_height):
         # Position and size
-        self.width = 80
-        self.height = 80
+        self.width = 60  # 80から60に縮小
+        self.height = 60  # 80から60に縮小
         self.x = screen_width - self.width - 50  # Position on the right side
         self.y = screen_height // 2 - self.height // 2
         
@@ -243,7 +243,7 @@ class Boss:
         bullet_data = []
         
         # Adjust shoot delay based on phase
-        phase_shoot_delay = max(10, self.shoot_delay - (self.phase - 1) * 5)
+        phase_shoot_delay = max(15, self.shoot_delay - (self.phase - 1) * 4)  # 10から15に増加、減少幅も5から4に調整
         
         if self.shoot_timer >= phase_shoot_delay:
             self.shoot_timer = 0
@@ -316,7 +316,7 @@ class Boss:
                 # Rapid fire during charge
                 if self.move_timer >= 60 and self.move_timer < 90:
                     # Faster shooting during charge
-                    if random.random() < 0.3:  # 30% chance each frame
+                    if random.random() < 0.25:  # 0.3から0.25に減少
                         bullet_data.append({
                             'x': self.x, 
                             'y': self.y + random.randint(0, self.height),
@@ -325,7 +325,7 @@ class Boss:
                         })
                         
                         # Additional bullets in phase 4
-                        if self.phase >= 4 and random.random() < 0.5:
+                        if self.phase >= 4 and random.random() < 0.4:  # 0.5から0.4に減少
                             bullet_data.append({
                                 'x': self.x, 
                                 'y': self.y + random.randint(0, self.height),
@@ -346,7 +346,7 @@ class Boss:
             
             elif self.current_pattern == "burst":
                 # Phase 3+: Burst of bullets in all directions
-                if self.burst_timer % 60 < 10 and self.burst_timer % 5 == 0:
+                if self.burst_timer % 60 < 10 and self.burst_timer % 6 == 0:  # 5から6に増加
                     num_bullets = 8  # 8 directions
                     for i in range(num_bullets):
                         angle = i * (2 * math.pi / num_bullets)
@@ -367,7 +367,7 @@ class Boss:
                         'speed_x': -10,
                         'speed_y': 0
                     })
-                elif self.laser_firing > 0 and self.laser_firing < 60 and self.laser_firing % 3 == 0:
+                elif self.laser_firing > 0 and self.laser_firing < 60 and self.laser_firing % 4 == 0:  # 3から4に増加
                     # Rapid laser fire
                     bullet_data.append({
                         'x': self.x, 

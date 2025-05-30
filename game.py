@@ -172,8 +172,8 @@ class Game:
                 self.enemies.remove(enemy)
                 continue
                 
-            # Enemy shoots randomly
-            if random.random() < 0.01:  # 1% chance per frame
+            # Enemy shoots randomly - 減らして弾幕を調整
+            if random.random() < 0.007:  # 0.01から0.007に減少
                 bullet = Bullet(enemy.x, enemy.y + enemy.height // 2, -5, 0)
                 self.enemy_bullets.append(bullet)
                 

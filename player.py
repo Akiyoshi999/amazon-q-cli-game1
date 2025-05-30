@@ -3,10 +3,11 @@ import math
 
 class Player:
     def __init__(self, x, y):
+        # サイズを小さく調整
         self.x = x
         self.y = y
-        self.width = 45
-        self.height = 35
+        self.width = 35  # 45から35に縮小
+        self.height = 25  # 35から25に縮小
         self.speed = 5
         self.color = (0, 255, 0)  # Green
         self.engine_color = (255, 100, 0)  # Orange for engine
