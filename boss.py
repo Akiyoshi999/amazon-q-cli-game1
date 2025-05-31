@@ -224,6 +224,8 @@ class Boss:
             self.x += random.uniform(-0.5, 0.5)  # Just a little shake
         else:
             # Reset after firing
+            self.laser_charging = 0  # レーザー充電をリセット
+            self.laser_firing = 0    # レーザー発射をリセット
             self.pattern_timer = 290  # Almost time for a new pattern
     
     def _stay_on_screen(self):
