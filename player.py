@@ -3,307 +3,237 @@ import math
 
 class Player:
     def __init__(self, x, y):
-        # サイズを小さく調整
         self.x = x
         self.y = y
-        self.width = 35  # 45から35に縮小
-        self.height = 25  # 35から25に縮小
+        self.width = 35
+        self.height = 25
         self.speed = 5
-        self.color = (0, 255, 0)  # Green
-        self.engine_color = (255, 100, 0)  # Orange for engine
-        self.detail_color = (0, 200, 255)  # Cyan for details
-        
-        # HPの追加
+        self.color = (0, 255, 255)
+        self.shield_active = False
+        self.shield_timer = 0
+        self.shield_duration = 300  # フレーム数（約5秒）
         self.max_hp = 2
         self.hp = self.max_hp
-        self.hit_effect = 0  # ダメージを受けた時のエフェクト用タイマー
-        
-        # 当たり判定用の中心点
-        self.hitbox_radius = 3
-        self.hitbox_color = (255, 0, 0)  # Red
-        
-        # Engine animation
-        self.engine_flicker = 0
-        
-        # Powerups
+        self.hit_effect_timer = 0
+        self.hit_effect_duration = 30  # 0.5秒間
+        self.hitbox_radius = 3  # 当たり判定の半径
         self.powerups = {
-            "multi_shot": 0,     # Multiple bullets at once
-            "diagonal_shot": 0,  # Diagonal bullets
-            "speed_up": 0,       # Increased speed
-            "shield": 0          # Temporary invulnerability
+            "multi_shot": 0,
+            "diagonal_shot": 0,
+            "speed_up": 0,
+            "shield": 0
         }
+
+    def move(self, dx, dy):
+        self.x += dx * self.speed
+        self.y += dy * self.speed
         
-        # Powerup message
-        self.powerup_message = ""
-        self.message_timer = 0
-    
-    def update(self, keys, screen_width, screen_height):
-        # Update powerup timers
-        for powerup in self.powerups:
-            if self.powerups[powerup] > 0:
-                self.powerups[powerup] -= 1
+        # 画面外に出ないように制限
+        self.x = max(self.width // 2, min(self.x, 800 - self.width // 2))
+        self.y = max(self.height // 2, min(self.y, 600 - self.height // 2))
+
+    def activate_shield(self):
+        self.shield_active = True
+        self.shield_timer = self.shield_duration
+
+    def update(self, keys=None, width=None, height=None):
+        if self.shield_active:
+            self.shield_timer -= 1
+            if self.shield_timer <= 0:
+                self.shield_active = False
+        
+        if self.hit_effect_timer > 0:
+            self.hit_effect_timer -= 1
+            
+        # パワーアップの時間を減らす
+        for powerup_type in self.powerups:
+            if self.powerups[powerup_type] > 0:
+                self.powerups[powerup_type] -= 1
                 
-                # Reset speed when speed powerup expires
-                if powerup == "speed_up" and self.powerups[powerup] == 0:
-                    self.speed = 5
-        
-        # Update message timer
-        if self.message_timer > 0:
-            self.message_timer -= 1
-        
-        # Calculate speed based on powerups
-        current_speed = self.speed
-        
-        # Move up
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
-            self.y -= current_speed
-        # Move down
-        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            self.y += current_speed
-        # Move left
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            self.x -= current_speed
-        # Move right
-        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            self.x += current_speed
-        
-        # Keep player on screen
-        self.x = max(0, min(self.x, screen_width - self.width))
-        self.y = max(0, min(self.y, screen_height - self.height))
-        
-        # Update engine animation
-        self.engine_flicker = (self.engine_flicker + 1) % 10
-    
+                # シールドの場合は特別処理
+                if powerup_type == "shield" and self.powerups[powerup_type] > 0:
+                    self.shield_active = True
+                
+                # スピードアップの効果が切れたら元に戻す
+                if powerup_type == "speed_up" and self.powerups[powerup_type] == 0:
+                    self.speed = 5  # 元のスピードに戻す
+            
+        # キー入力による移動処理（引数が提供されている場合）
+        if keys is not None:
+            dx, dy = 0, 0
+            if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+                dx = -1
+            if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                dx = 1
+            if keys[pygame.K_UP] or keys[pygame.K_w]:
+                dy = -1
+            if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+                dy = 1
+            
+            self.move(dx, dy)
+
     def draw(self, screen):
+        # 自機の描画（より洗練されたデザイン）
+        # 基本的な船体
+        ship_color = (0, 255, 255)  # 通常色
+        
         # ダメージエフェクト（赤く点滅）
-        if self.hit_effect > 0:
-            self.hit_effect -= 1
-            if self.hit_effect % 4 < 2:  # 点滅効果
-                ship_color = (255, 100, 100)  # 赤っぽい色
-            else:
-                ship_color = self.color
-        else:
-            ship_color = self.color
-            
-        # Draw engine flames (animated)
-        flame_length = 15 + (5 if self.engine_flicker < 5 else 0)
-        flame_points = [
-            (self.x - flame_length, self.y + self.height // 2),  # Tip
-            (self.x, self.y + self.height // 3),                 # Top
-            (self.x, self.y + 2 * self.height // 3)              # Bottom
+        if self.hit_effect_timer > 0 and self.hit_effect_timer % 6 < 3:
+            ship_color = (255, 100, 100)  # ダメージ時は赤く
+        
+        # 船体の描画
+        points = [
+            (self.x + self.width // 2, self.y),
+            (self.x - self.width // 2, self.y - self.height // 3),
+            (self.x - self.width // 2 + 10, self.y),
+            (self.x - self.width // 2, self.y + self.height // 3)
         ]
-        pygame.draw.polygon(screen, self.engine_color, flame_points)
+        pygame.draw.polygon(screen, ship_color, points)
         
-        # Inner flame (brighter)
-        inner_flame_length = flame_length // 2
-        inner_flame_points = [
-            (self.x - inner_flame_length, self.y + self.height // 2),  # Tip
-            (self.x, self.y + self.height // 2 - 5),                   # Top
-            (self.x, self.y + self.height // 2 + 5)                    # Bottom
-        ]
-        pygame.draw.polygon(screen, (255, 255, 0), inner_flame_points)
+        # エンジン炎
+        flame_length = 10 + (pygame.time.get_ticks() % 10) // 5 * 5  # アニメーション効果
+        pygame.draw.polygon(screen, (255, 165, 0), [
+            (self.x - self.width // 2, self.y - self.height // 6),
+            (self.x - self.width // 2 - flame_length, self.y),
+            (self.x - self.width // 2, self.y + self.height // 6)
+        ])
         
-        # Draw main ship body (sleek aerodynamic shape)
-        ship_points = [
-            (self.x, self.y + self.height // 2),                  # Nose
-            (self.x + self.width // 3, self.y),                   # Top front
-            (self.x + 2 * self.width // 3, self.y),               # Top middle
-            (self.x + self.width, self.y + self.height // 4),     # Top rear
-            (self.x + self.width, self.y + 3 * self.height // 4), # Bottom rear
-            (self.x + 2 * self.width // 3, self.y + self.height), # Bottom middle
-            (self.x + self.width // 3, self.y + self.height)      # Bottom front
-        ]
-        pygame.draw.polygon(screen, ship_color, ship_points)
+        # 翼の詳細
+        pygame.draw.line(screen, (0, 200, 200), 
+                        (self.x - self.width // 4, self.y - self.height // 3),
+                        (self.x + self.width // 4, self.y - self.height // 6), 2)
+        pygame.draw.line(screen, (0, 200, 200), 
+                        (self.x - self.width // 4, self.y + self.height // 3),
+                        (self.x + self.width // 4, self.y + self.height // 6), 2)
         
-        # Draw wing details
-        wing_top = [
-            (self.x + self.width // 3, self.y),
-            (self.x + self.width // 2, self.y - 10),
-            (self.x + 2 * self.width // 3, self.y)
-        ]
-        pygame.draw.polygon(screen, self.detail_color, wing_top)
+        # コックピット
+        pygame.draw.circle(screen, (200, 200, 255), 
+                        (self.x + self.width // 6, self.y), self.height // 5)
+        pygame.draw.circle(screen, (255, 255, 255), 
+                        (self.x + self.width // 6 + 2, self.y - 2), self.height // 10)
         
-        wing_bottom = [
-            (self.x + self.width // 3, self.y + self.height),
-            (self.x + self.width // 2, self.y + self.height + 10),
-            (self.x + 2 * self.width // 3, self.y + self.height)
-        ]
-        pygame.draw.polygon(screen, self.detail_color, wing_bottom)
+        # シールドエフェクト
+        if self.shield_active:
+            shield_radius = self.width + 5 + math.sin(pygame.time.get_ticks() / 100) * 3
+            pygame.draw.circle(screen, (100, 100, 255, 128), (self.x, self.y), shield_radius, 2)
+            # エネルギー波紋
+            wave_offset = (pygame.time.get_ticks() % 30) / 30
+            for i in range(3):
+                wave_radius = shield_radius - 10 + i * 7 + wave_offset * 7
+                if wave_radius < shield_radius:
+                    pygame.draw.circle(screen, (150, 150, 255, 100), (self.x, self.y), wave_radius, 1)
         
-        # Draw cockpit (glass dome)
-        cockpit_x = self.x + 2 * self.width // 3
-        cockpit_y = self.y + self.height // 2 - 8
-        cockpit_width = 15
-        cockpit_height = 16
+        # 当たり判定の赤い点
+        pygame.draw.circle(screen, (255, 0, 0), (self.x, self.y), 3)
         
-        # Cockpit base
-        pygame.draw.ellipse(screen, (100, 100, 150), 
-                           (cockpit_x, cockpit_y, cockpit_width, cockpit_height))
-        
-        # Cockpit glass reflection
-        pygame.draw.ellipse(screen, (150, 200, 255), 
-                           (cockpit_x + 2, cockpit_y + 2, cockpit_width - 4, cockpit_height // 2 - 2))
-        
-        # Draw thruster nozzles
-        pygame.draw.rect(screen, (100, 100, 100), 
-                        (self.x + self.width - 5, self.y + self.height // 4 - 2, 8, 4))
-        pygame.draw.rect(screen, (100, 100, 100), 
-                        (self.x + self.width - 5, self.y + 3 * self.height // 4 - 2, 8, 4))
-        
-        # Draw hitbox (red circle at center)
-        hitbox_x = self.x + self.width // 2
-        hitbox_y = self.y + self.height // 2
-        pygame.draw.circle(screen, self.hitbox_color, (hitbox_x, hitbox_y), self.hitbox_radius)
-        
-        # Draw shield if active
-        if self.powerups["shield"] > 0:
-            # Draw shield bubble
-            shield_radius = max(self.width, self.height) + 10
-            shield_color = (100, 100, 255, 128)  # Blue with transparency
-            
-            # Create a surface with alpha
-            shield_surface = pygame.Surface((shield_radius * 2, shield_radius * 2), pygame.SRCALPHA)
-            
-            # Draw shield with pulsing effect
-            pulse = math.sin(pygame.time.get_ticks() * 0.01) * 0.3 + 0.7
-            shield_alpha = int(128 * pulse)
-            
-            # Outer shield
-            pygame.draw.circle(shield_surface, (100, 100, 255, shield_alpha), 
-                              (shield_radius, shield_radius), shield_radius)
-            
-            # Inner shield (brighter)
-            pygame.draw.circle(shield_surface, (150, 150, 255, shield_alpha), 
-                              (shield_radius, shield_radius), shield_radius - 5, 3)
-            
-            # Shield energy ripples
-            ripple_radius = (pygame.time.get_ticks() // 100) % shield_radius
-            pygame.draw.circle(shield_surface, (200, 200, 255, shield_alpha // 2), 
-                              (shield_radius, shield_radius), ripple_radius, 2)
-            
-            # Position shield around player
-            shield_x = self.x + self.width // 2 - shield_radius
-            shield_y = self.y + self.height // 2 - shield_radius
-            screen.blit(shield_surface, (shield_x, shield_y))
-        
-        # Draw HP bar
-        self._draw_hp_bar(screen)
-        
-        # Draw powerup indicators
-        self._draw_powerup_indicators(screen)
-        
-        # Draw powerup message
-        if self.message_timer > 0:
-            font = pygame.font.SysFont(None, 24)
-            text = font.render(self.powerup_message, True, (255, 255, 255))
-            screen.blit(text, (self.x, self.y - 20))
-    
-    def _draw_hp_bar(self, screen):
-        """HPバーを描画"""
-        bar_width = 30
-        bar_height = 4
-        bar_x = self.x + (self.width - bar_width) // 2
-        bar_y = self.y - 10
-        
+        # HPバーの描画
+        self.draw_hp_bar(screen)
+
+    def draw_hp_bar(self, screen):
         # HPバーの背景
-        pygame.draw.rect(screen, (50, 50, 50), (bar_x, bar_y, bar_width, bar_height))
+        bar_width = 40
+        bar_height = 5
+        bar_x = self.x - bar_width // 2
+        bar_y = self.y - self.height - 10
         
-        # HPバーの中身
+        # 背景（グレー）
+        pygame.draw.rect(screen, (70, 70, 70), (bar_x, bar_y, bar_width, bar_height))
+        
+        # HPに応じたバーの長さ
         hp_ratio = self.hp / self.max_hp
-        fill_width = int(bar_width * hp_ratio)
+        current_bar_width = int(bar_width * hp_ratio)
         
-        # HPに応じて色を変える
+        # HPに応じた色（満タン時は緑、半分以下は赤）
         if hp_ratio > 0.5:
-            fill_color = (0, 255, 0)  # 緑
+            bar_color = (0, 255, 0)  # 緑
         else:
-            fill_color = (255, 0, 0)  # 赤
-            
-        pygame.draw.rect(screen, fill_color, (bar_x, bar_y, fill_width, bar_height))
-    
-    def _draw_powerup_indicators(self, screen):
-        # Draw small indicators for active powerups
-        indicator_size = 5
-        indicator_y = self.y - 10
+            bar_color = (255, 0, 0)  # 赤
         
-        # Multi-shot indicator
-        if self.powerups["multi_shot"] > 0:
-            pygame.draw.rect(screen, (255, 255, 0), 
-                            (self.x, indicator_y, indicator_size, indicator_size))
+        # HPバー
+        pygame.draw.rect(screen, bar_color, (bar_x, bar_y, current_bar_width, bar_height))
         
-        # Diagonal-shot indicator
-        if self.powerups["diagonal_shot"] > 0:
-            pygame.draw.rect(screen, (0, 255, 255), 
-                            (self.x + indicator_size + 2, indicator_y, indicator_size, indicator_size))
-        
-        # Speed-up indicator
-        if self.powerups["speed_up"] > 0:
-            pygame.draw.rect(screen, (0, 255, 0), 
-                            (self.x + (indicator_size + 2) * 2, indicator_y, indicator_size, indicator_size))
-        
-        # Shield indicator is visible as the shield itself
-    
-    def set_powerup_message(self, message):
-        """Set a message to display above the player"""
-        self.powerup_message = message
-        self.message_timer = 120  # Display for 2 seconds (120 frames)
-    
-    def fire_bullets(self):
-        """Return a list of bullets based on current powerups"""
-        bullets = []
-        
-        # Base bullet
-        bullets.append({
-            'x': self.x + self.width,
-            'y': self.y + self.height // 2,
-            'speed_x': 10,
-            'speed_y': 0
-        })
-        
-        # Multi-shot powerup (3 bullets in a row)
-        if self.powerups["multi_shot"] > 0:
-            bullets.append({
-                'x': self.x + self.width,
-                'y': self.y + self.height // 4,  # Higher
-                'speed_x': 10,
-                'speed_y': 0
-            })
-            bullets.append({
-                'x': self.x + self.width,
-                'y': self.y + 3 * self.height // 4,  # Lower
-                'speed_x': 10,
-                'speed_y': 0
-            })
-        
-        # Diagonal-shot powerup
-        if self.powerups["diagonal_shot"] > 0:
-            bullets.append({
-                'x': self.x + self.width,
-                'y': self.y + self.height // 2,
-                'speed_x': 8,
-                'speed_y': -5  # Up-diagonal
-            })
-            bullets.append({
-                'x': self.x + self.width,
-                'y': self.y + self.height // 2,
-                'speed_x': 8,
-                'speed_y': 5   # Down-diagonal
-            })
-        
-        return bullets
-    
-    def take_damage(self):
-        """ダメージを受ける処理"""
-        if self.powerups["shield"] > 0:
-            return False  # シールド中はダメージを受けない
-            
-        self.hp -= 1
-        self.hit_effect = 30  # 30フレーム（0.5秒）のダメージエフェクト
-        return self.hp <= 0  # HPが0以下ならTrueを返す（ゲームオーバー）
-    
-    def has_shield(self):
-        """Check if shield is active"""
-        return self.powerups["shield"] > 0
-    
+        # 枠線
+        pygame.draw.rect(screen, (200, 200, 200), (bar_x, bar_y, bar_width, bar_height), 1)
+
     def get_hitbox_center(self):
-        """当たり判定の中心座標を返す"""
-        return (self.x + self.width // 2, self.y + self.height // 2)
+        # 当たり判定は中心点のみ
+        return (self.x, self.y)
+        
+    def take_damage(self):
+        if not self.shield_active:
+            self.hp -= 1
+            self.hit_effect_timer = self.hit_effect_duration
+            # HPが0になった場合のみゲームオーバーを返す
+            return self.hp <= 0
+        return False
+    def has_shield(self):
+        return self.shield_active
+        
+    def fire_bullets(self):
+        # 基本的な弾のデータを返す
+        bullet_data = []
+        
+        # マルチショットが有効な場合
+        if self.powerups["multi_shot"] > 0:
+            # 中央の弾
+            bullet_data.append({
+                'x': self.x + self.width // 2,
+                'y': self.y,
+                'speed_x': 10,
+                'speed_y': 0
+            })
+            
+            # 上下の弾
+            bullet_data.append({
+                'x': self.x + self.width // 2,
+                'y': self.y - 10,
+                'speed_x': 10,
+                'speed_y': 0
+            })
+            
+            bullet_data.append({
+                'x': self.x + self.width // 2,
+                'y': self.y + 10,
+                'speed_x': 10,
+                'speed_y': 0
+            })
+        
+        # 斜め発射が有効な場合
+        elif self.powerups["diagonal_shot"] > 0:
+            # 中央の弾
+            bullet_data.append({
+                'x': self.x + self.width // 2,
+                'y': self.y,
+                'speed_x': 10,
+                'speed_y': 0
+            })
+            
+            # 斜め上下の弾
+            bullet_data.append({
+                'x': self.x + self.width // 2,
+                'y': self.y,
+                'speed_x': 9,
+                'speed_y': -3
+            })
+            
+            bullet_data.append({
+                'x': self.x + self.width // 2,
+                'y': self.y,
+                'speed_x': 9,
+                'speed_y': 3
+            })
+        
+        # 通常の弾
+        else:
+            bullet_data.append({
+                'x': self.x + self.width // 2,
+                'y': self.y,
+                'speed_x': 10,
+                'speed_y': 0
+            })
+        
+        return bullet_data
+        
+    def set_powerup_message(self, message):
+        # パワーアップメッセージを設定（必要に応じて実装）
+        pass

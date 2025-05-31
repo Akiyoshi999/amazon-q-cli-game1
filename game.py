@@ -392,8 +392,15 @@ class Game:
         pygame.display.flip()
     
     def check_collision(self, obj1, obj2):
-        # プレイヤーの場合は中心点の当たり判定を使用
-        if isinstance(obj2, Player):
+        # パワーアップアイテムとプレイヤーの場合は、自機全体での当たり判定を使用
+        if isinstance(obj2, Player) and hasattr(obj1, 'type') and hasattr(obj1, 'apply_effect'):
+            # パワーアップアイテムの場合は自機全体との当たり判定
+            return (obj1.x < obj2.x + obj2.width and
+                    obj1.x + obj1.width > obj2.x and
+                    obj1.y < obj2.y + obj2.height and
+                    obj1.y + obj1.height > obj2.y)
+        # 敵や弾とプレイヤーの場合は中心点の当たり判定を使用
+        elif isinstance(obj2, Player):
             # プレイヤーの中心座標を取得
             player_center_x, player_center_y = obj2.get_hitbox_center()
             
