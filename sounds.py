@@ -99,16 +99,15 @@ class SoundManager:
             duration = 10.0  # 10 seconds loop
             t = np.linspace(0, duration, int(sample_rate * duration), False)
             
-            # --- 通常BGM ---
-            # よりメロディックで穏やかな通常BGM
+            # --- 通常BGM (より明るく爽快な曲調に変更) ---
             
-            # ベースリズム (穏やかなビート)
-            beat_freq = 3  # beats per second (少し遅め)
+            # ベースリズム (よりテンポアップ)
+            beat_freq = 4  # beats per second
             beat = 0.3 * np.sin(2 * np.pi * beat_freq * t)
             beat = beat * (beat > 0)  # Keep only positive parts
             
-            # ベースライン (明るいパターン)
-            bass_notes = [220, 262, 196, 175]  # A3, C4, G3, F3
+            # ベースライン (明るい音階を使用)
+            bass_notes = [262, 330, 392, 330]  # C4, E4, G4, E4 (明るい長調)
             bass_pattern_duration = 4.0  # seconds per pattern
             bass = np.zeros_like(t)
             
@@ -122,7 +121,7 @@ class SoundManager:
                         bass[note_start:note_end] += 0.25 * np.sin(2 * np.pi * note * note_t)
             
             # メロディ (明るく軽快なメロディ)
-            melody_notes = [392, 440, 494, 523, 494, 440, 392, 349]  # G4, A4, B4, C5, B4, A4, G4, F4
+            melody_notes = [523, 587, 659, 698, 659, 587, 523, 494]  # C5, D5, E5, F5, E5, D5, C5, B4
             melody_pattern_duration = 8.0  # seconds per pattern
             melody = np.zeros_like(t)
             
@@ -137,8 +136,8 @@ class SoundManager:
                             envelope = np.exp(-3 * (note_t - 0.5 * (note_t[-1] - note_t[0])) ** 2 / max(0.0001, (note_t[-1] - note_t[0])) ** 2)
                             melody[note_start:note_end] += 0.2 * np.sin(2 * np.pi * note * note_t) * envelope
             
-            # 高音部の装飾 (アルペジオ風)
-            high_notes = [659, 587, 523, 494, 523, 587, 659, 784]  # E5, D5, C5, B4, C5, D5, E5, G5
+            # 高音部の装飾 (明るいアルペジオ)
+            high_notes = [784, 880, 988, 1047, 988, 880, 784, 659]  # G5, A5, B5, C6, B5, A5, G5, E5
             high_pattern_duration = 4.0
             high_melody = np.zeros_like(t)
             
@@ -172,16 +171,15 @@ class SoundManager:
             self.sounds['bgm'] = pygame.sndarray.make_sound(bgm_stereo)
             self.sounds['bgm'].set_volume(0.4)
             
-            # --- ボス戦BGM ---
-            # より激しく緊迫感のあるボス戦BGM
+            # --- ボス戦BGM (より盛り上がる感じに変更) ---
             
-            # 速いビート
-            boss_beat_freq = 5  # 速いビート
+            # 速いビート (よりテンポアップ)
+            boss_beat_freq = 6  # 速いビート (5から6に増加)
             boss_beat = 0.5 * np.sin(2 * np.pi * boss_beat_freq * t)
             boss_beat = boss_beat * (boss_beat > 0)
             
-            # 低音で不気味なベースライン
-            boss_bass_notes = [147, 165, 147, 131]  # D3, E3, D3, C3 (低めの音)
+            # 力強いベースライン
+            boss_bass_notes = [196, 233, 196, 175]  # G3, A#3, G3, F3
             boss_bass = np.zeros_like(t)
             
             for i in range(int(duration / bass_pattern_duration)):
@@ -194,8 +192,8 @@ class SoundManager:
                         # より強いベース音
                         boss_bass[note_start:note_end] += 0.45 * np.sin(2 * np.pi * note * note_t)
             
-            # ドラマチックなメロディ
-            boss_melody_notes = [392, 370, 392, 466, 440, 392, 349, 330]  # G4, F#4, G4, A#4, A4, G4, F4, E4
+            # 盛り上がるメロディ
+            boss_melody_notes = [392, 466, 523, 622, 587, 523, 466, 392]  # G4, A#4, C5, D#5, D5, C5, A#4, G4
             boss_melody = np.zeros_like(t)
             
             for i in range(int(duration / melody_pattern_duration)):
@@ -210,16 +208,18 @@ class SoundManager:
                             envelope = np.exp(-4 * (note_t - 0.3 * (note_t[-1] - note_t[0])) ** 2 / max(0.0001, (note_t[-1] - note_t[0])) ** 2)
                             boss_melody[note_start:note_end] += 0.35 * np.sin(2 * np.pi * note * note_t) * envelope
             
-            # 緊迫感を出す高音の効果音
-            boss_fx_notes = [587, 554, 587, 622, 587, 554, 523, 494]  # D5, C#5, D5, D#5, D5, C#5, C5, B4
+            # 高音部の効果音 (より派手に)
+            boss_fx_notes = [784, 740, 784, 831, 784, 740, 698, 659]  # G5, F#5, G5, G#5, G5, F#5, F5, E5
             boss_fx = np.zeros_like(t)
             
-            # 不規則なリズムで高音を鳴らす
-            fx_pattern = [0.5, 0.7, 1.2, 1.5, 2.3, 2.5, 3.1, 3.6, 4.2, 4.4, 5.0, 5.5, 6.1, 6.3, 7.0, 7.5, 8.2, 8.4, 9.0, 9.5]
+            # 不規則なリズムで高音を鳴らす (より多く)
+            fx_pattern = [0.3, 0.5, 0.7, 1.0, 1.2, 1.5, 1.8, 2.0, 2.3, 2.5, 2.8, 3.0, 3.3, 3.5, 3.8, 4.0,
+                         4.3, 4.5, 4.8, 5.0, 5.3, 5.5, 5.8, 6.0, 6.3, 6.5, 6.8, 7.0, 7.3, 7.5, 7.8, 8.0,
+                         8.3, 8.5, 8.8, 9.0, 9.3, 9.5, 9.8]
             for time_point in fx_pattern:
                 if time_point < duration:
                     idx = int(time_point * sample_rate)
-                    note_idx = int(time_point) % len(boss_fx_notes)
+                    note_idx = int(time_point * 4) % len(boss_fx_notes)
                     note = boss_fx_notes[note_idx]
                     
                     # 短い効果音
@@ -230,8 +230,24 @@ class SoundManager:
                         envelope = np.exp(-15 * note_t)
                         boss_fx[idx:end_idx] += 0.25 * np.sin(2 * np.pi * note * note_t) * envelope
             
+            # ドラム風の効果音を追加
+            drum_pattern = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5]
+            drum_sound = np.zeros_like(t)
+            for time_point in drum_pattern:
+                if time_point < duration:
+                    idx = int(time_point * sample_rate)
+                    # ドラム音の長さ
+                    drum_duration = 0.05
+                    end_idx = min(idx + int(drum_duration * sample_rate), len(t))
+                    if idx < len(t):
+                        # ノイズベースのドラム音
+                        drum_t = np.arange(end_idx - idx) / sample_rate
+                        noise = np.random.uniform(-1, 1, len(drum_t))
+                        envelope = np.exp(-30 * drum_t)
+                        drum_sound[idx:end_idx] += 0.4 * noise * envelope
+            
             # ボスBGMのトラックを結合
-            boss_bgm = boss_beat + boss_bass + boss_melody + boss_fx
+            boss_bgm = boss_beat + boss_bass + boss_melody + boss_fx + drum_sound
             
             # 歪みを加えて迫力を出す
             boss_bgm = np.tanh(boss_bgm * 1.8) * 0.8
