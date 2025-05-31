@@ -103,8 +103,15 @@ class Game:
                         pass  # Silently ignore sound errors
                 
             elif event.key == pygame.K_r and (self.game_over or self.game_cleared):
-                # Restart game with same difficulty
-                self.__init__(self.width, self.height, self.difficulty)
+                # ゲームクリア時はメインメニューに戻る
+                if self.game_cleared:
+                    return "menu"
+                else:
+                    # ゲームオーバー時は同じ難易度で再開
+                    self.__init__(self.width, self.height, self.difficulty)
+                    return None
+        
+        return None
     
     def update(self):
         if self.game_over or self.game_cleared:
@@ -367,7 +374,7 @@ class Game:
             score_rect = score_text.get_rect(center=(self.width // 2, self.height // 2))
             self.screen.blit(score_text, score_rect)
             
-            restart_text = self.font.render("Press R to restart", True, (255, 255, 255))
+            restart_text = self.font.render("Press R to return to menu", True, (255, 255, 255))
             restart_rect = restart_text.get_rect(center=(self.width // 2, self.height // 2 + 40))
             self.screen.blit(restart_text, restart_rect)
         
