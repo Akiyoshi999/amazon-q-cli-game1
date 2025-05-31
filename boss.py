@@ -249,15 +249,18 @@ class Boss:
             self.shoot_timer = 0
             should_shoot = True
             
+            # 常に少なくとも1発は発射する（パターンに関わらず）
+            bullet_data.append({
+                'x': self.x, 
+                'y': self.y + self.height // 2,
+                'speed_x': -7,
+                'speed_y': 0
+            })
+            
             # Different shooting patterns based on current movement pattern and phase
             if self.current_pattern == "normal":
                 # Single bullet (all phases)
-                bullet_data.append({
-                    'x': self.x, 
-                    'y': self.y + self.height // 2,
-                    'speed_x': -7,
-                    'speed_y': 0
-                })
+                # 基本弾は上で追加済み
                 
                 # Additional bullets in later phases
                 if self.phase >= 2:
