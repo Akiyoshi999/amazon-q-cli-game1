@@ -29,7 +29,7 @@ class Boss:
         self.circle_center_y = screen_height // 2
         
         # Stats
-        self.max_hp = int(200 * hp_multiplier)  # 難易度に応じてHP調整
+        self.max_hp = int(300 * hp_multiplier)  # 200から300に増加（1.5倍）
         self.hp = self.max_hp
         self.shoot_timer = 0
         self.shoot_delay = 30  # Shoot every 30 frames
@@ -57,6 +57,9 @@ class Boss:
         self.burst_timer = 0
         self.laser_charging = 0
         self.laser_firing = 0
+        
+        # Debug flag
+        self.debug = False
     
     def update(self):
         # Update hit effect (flashing when hit)
@@ -73,7 +76,19 @@ class Boss:
         self.pattern_timer += 1
         if self.pattern_timer > 300:  # Change pattern every 5 seconds (300 frames)
             self.pattern_timer = 0
-            self.current_pattern = random.choice(self.phase_patterns[self.phase])
+            # 前回と同じパターンを避ける
+            available_patterns = self.phase_patterns[self.phase].copy()
+            if len(available_patterns) > 1 and self.current_pattern in available_patterns:
+                available_patterns.remove(self.current_pattern)
+            
+            # 新しいパターンを選択
+            old_pattern = self.current_pattern
+            self.current_pattern = random.choice(available_patterns)
+            
+            # パターン変更時のデバッグ出力
+            if self.debug:
+                print(f"Phase {self.phase}: Changed pattern from {old_pattern} to {self.current_pattern}")
+            
             # Reset pattern-specific variables
             self.circle_angle = 0
             self.move_timer = 0
@@ -81,6 +96,12 @@ class Boss:
             self.burst_timer = 0
             self.laser_charging = 0
             self.laser_firing = 0
+            
+            # パターン変更時に位置をリセット（動かなくなるバグ対策）
+            if old_pattern in ["laser", "charge"]:
+                # レーザーやチャージパターン後は右側に戻す
+                self.x = self.screen_width - self.width - 50
+                self.y = self.screen_height // 2 - self.height // 2
         
         # Apply current movement pattern
         if self.current_pattern == "normal":
@@ -171,6 +192,7 @@ class Boss:
                 self.x += charge_speed * 2  # Return to the right side
             else:
                 # Reset pattern when returned
+                self.move_timer = 0  # タイマーをリセット
                 self.pattern_timer = 290  # Almost time for a new pattern
     
     def _spiral_movement(self):

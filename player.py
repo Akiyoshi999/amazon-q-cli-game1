@@ -12,7 +12,7 @@ class Player:
         self.shield_active = False
         self.shield_timer = 0
         self.shield_duration = 300  # フレーム数（約5秒）
-        self.max_hp = 2
+        self.max_hp = 3  # HPを2から3に増加
         self.hp = self.max_hp
         self.hit_effect_timer = 0
         self.hit_effect_duration = 30  # 0.5秒間
@@ -23,6 +23,9 @@ class Player:
             "speed_up": 0,
             "shield": 0
         }
+        self.invincible = False  # 無敵状態フラグ
+        self.invincible_timer = 0  # 無敵時間カウンター
+        self.invincible_duration = 120  # 無敵時間（2秒 = 120フレーム）
 
     def move(self, dx, dy):
         self.x += dx * self.speed
@@ -44,6 +47,13 @@ class Player:
         
         if self.hit_effect_timer > 0:
             self.hit_effect_timer -= 1
+            
+        # 無敵時間の更新
+        if self.invincible:
+            self.invincible_timer -= 1
+            if self.invincible_timer <= 0:
+                self.invincible = False
+                self.invincible_timer = 0
             
         # パワーアップの時間を減らす
         for powerup_type in self.powerups:
@@ -76,6 +86,11 @@ class Player:
         # 自機の描画（より洗練されたデザイン）
         # 基本的な船体
         ship_color = (0, 255, 255)  # 通常色
+        
+        # 無敵状態の点滅効果
+        if self.invincible and self.invincible_timer % 10 < 5:
+            # 無敵時は点滅（5フレームごとに表示/非表示）
+            return  # 描画をスキップして点滅効果を作る
         
         # ダメージエフェクト（赤く点滅）
         if self.hit_effect_timer > 0 and self.hit_effect_timer % 6 < 3:
@@ -123,6 +138,12 @@ class Player:
                 if wave_radius < shield_radius:
                     pygame.draw.circle(screen, (150, 150, 255, 100), (self.x, self.y), wave_radius, 1)
         
+        # 無敵状態のエフェクト
+        elif self.invincible:
+            # 無敵状態の視覚的効果（青い波紋）
+            inv_radius = self.width * 0.7 + math.sin(pygame.time.get_ticks() / 50) * 2
+            pygame.draw.circle(screen, (100, 200, 255, 100), (self.x, self.y), inv_radius, 1)
+        
         # 当たり判定の赤い点
         pygame.draw.circle(screen, (255, 0, 0), (self.x, self.y), 3)
         
@@ -143,9 +164,11 @@ class Player:
         hp_ratio = self.hp / self.max_hp
         current_bar_width = int(bar_width * hp_ratio)
         
-        # HPに応じた色（満タン時は緑、半分以下は赤）
-        if hp_ratio > 0.5:
+        # HPに応じた色（満タン時は緑、2/3以下は黄色、1/3以下は赤）
+        if hp_ratio > 0.66:
             bar_color = (0, 255, 0)  # 緑
+        elif hp_ratio > 0.33:
+            bar_color = (255, 255, 0)  # 黄色
         else:
             bar_color = (255, 0, 0)  # 赤
         
@@ -160,14 +183,21 @@ class Player:
         return (self.x, self.y)
         
     def take_damage(self):
-        if not self.shield_active:
+        # シールドまたは無敵状態の場合はダメージを受けない
+        if not self.shield_active and not self.invincible:
             self.hp -= 1
             self.hit_effect_timer = self.hit_effect_duration
+            
+            # 無敵状態を有効化
+            self.invincible = True
+            self.invincible_timer = self.invincible_duration
+            
             # HPが0になった場合のみゲームオーバーを返す
             return self.hp <= 0
         return False
     def has_shield(self):
-        return self.shield_active
+        # シールドまたは無敵状態のどちらかがあればダメージを受けない
+        return self.shield_active or self.invincible
         
     def fire_bullets(self):
         # 基本的な弾のデータを返す
